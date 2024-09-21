@@ -1,151 +1,201 @@
-const fs=require('fs');
-const inquirer=require('inquirer');
-const { default: Choices } = require('inquirer/lib/objects/choices');
 const{ Pool }=require('pg');
-const department=require('./getdepartment.js');
-const role=require('./getrole.js');
-const manager=require('./getmanager.js');
-const updateEmployeeRole=require('./updateEmployeerole.js');
-const pool=new Pool 
-({
-   
-    user: 'postgres',
-    password: '1234',
-    host: 'localhost',
-    database: 'employee_db'
-}
-)
+const pool=require('./pool.js')
+const inquirer = require('inquirer');
+
 pool.connect();
 
- 
-const tracking=(data)=>{
-if (data.action==='view all department'){
-    pool.query('SELECT * FROM department', function (err, { rows }) {
-        console.table(rows)}
-
-    ) }
-    else 
-    if (data.action==='view all roles'){
-        pool.query(
-            `SELECT role.id,role.title,role.salary,department.name FROM role
-             JOIN department
-              ON role.department_id=department.id`,(err,{rows})=>{
-            console.table(rows)
-        })
-
-
-    } else
-     if (data.action==='view all employees'){
-        pool.query(
-            `SELECT employee.id,employee.first_name,employee.last_name,
-            role.title AS job_titles,role.salary,department.name AS
-             department,role.salary ,
-             CONCAT(manager.first_name, ' ', manager.last_name) AS manager
-             FROM employee
-             JOIN role ON employee.role_id=role.id
-             JOIN 
-            department ON role.department_id = department.id`
-             ,(err,{rows})=>{
-                console.table(rows)
-             })
-
-    }else 
-      if (data.action==='add a department'){
-        inquirer
-        .prompt({
-            type:'input',
-            name:'department',
-            message:'what is the name of the department?'
-        })
-        .then((answer)=>{
-            pool.query('INSERT INTO department (name) VALUES ($1)',[answer.department],(err,{rows})=>{
-                if (err) {
-                    console.log(err);
-                  }else{
-                    pool.query('SELECT * FROM department', (err, { rows })=> {
-                    console.table(rows)}
-                    
-
-              )}
-            })
-
-        })
-    } else
-      if (data.action==='add a role'){
-        inquirer.prompt([{
-            type:'input',
-            name:'title',
-            message:'what is the title of the role?'
-        },
-        {
-            type:'input',
-            name:'salary',
-            message:'what is the salry of the role'
-        },
-        {
-            type:'list',
-            name:'department',
-            mesaage:'what department does the role belong to?',
-            choices:department
-            
-        }
-    ]).then((answer)=>{
-        console.log(answer.department)
-        pool.query(`INSERT INTO role (title, salary, department_id) VALUES ($1, $2, (SELECT id FROM department WHERE name = $3))`, [answer.title, answer.salary, answer.department], (err, { rows }) => {
-            if (err) {
-                console.log(err);
-            } else {
-                console.log('Role added sucessfully in the database')     // Further processing
-            }
+function viewDepartments() {
+    pool.query('SELECT * FROM department', (err, res) => {
+      if (err) throw err;
+      console.table(res.rows);
+      
+    });
+  }
+  
+  // View roles
+  function viewRoles() {
+    const query = `
+      SELECT role.id, role.title, department.name AS department, role.salary
+      FROM role
+      LEFT JOIN department ON role.department_id = department.id;
+    `;
+    pool.query(query, (err, res) => {
+      if (err) throw err;
+      console.table(res.rows);
+      
+    });
+  }
+  
+  // View employees
+  function viewEmployees() {
+    const query = `
+      SELECT employee.id, employee.first_name, employee.last_name, role.title, department.name AS department, role.salary,
+             COALESCE(manager.first_name || ' ' || manager.last_name, 'None') AS manager
+      FROM employee
+      LEFT JOIN role ON employee.role_id = role.id
+      LEFT JOIN department ON role.department_id = department.id
+      LEFT JOIN employee manager ON employee.manager_id = manager.id;
+    `;
+    pool.query(query, (err, res) => {
+      if (err) throw err;
+      console.table(res.rows);
+      mainMenu();
+    });
+  }
+  
+  // Add a department
+  function addDepartment() {
+    inquirer
+      .prompt({
+        name: 'name',
+        message: 'Enter the name of the department:'
+      })
+      .then((answer) => {
+        pool.query('INSERT INTO department (name) VALUES ($1)', [answer.name], (err) => {
+          if (err) throw err;
+          console.log('Department added!');
+          mainMenu();
         });
-    })
- }
-  else 
-    if (data.action==='add an employee'){
-        inquirer.prompt([{
-            type:'input',
-            name:'first_name',
-            message:'what is the first name of the employee?'
-        },
-        {
-            type:'input',
-            name:'last_name',
-            message:'what is the last name of the employee?'
-        },
-        {
-            type:'list',
-            name:'role',
-            message:'what is the role of the employee?',
-            choices:role
-
-    },
-    {
-        type:'list',
-        name :'manager',
-        message:'who is the manger of the employee?',
-        choices:[{ name: 'None', value: null }].concat(employees.map(employee => ({ name: employee.first_name + ' ' + employee.last_name, value: employee.id })))
-
-    }]).then((answer)=>{
-        pool.query(`INSERT INTO employee (first_name, last_name, role_id, manager_id) VALUES ($1, $2, (SELECT id FROM role WHERE title = $3), $4)`, [answer.first_name, answer.last_name, answer.role, answer.manager], (err, { rows }) => {
-            if (err) {
-                console.log(err);
-            } else {
-                console.log('Employee added sucessfully in the database')     // Further processing
+      });
+  }
+  
+  // Add a role
+  function addRole() {
+  pool.query('SELECT * FROM department', (err, res) => {
+      if (err) throw err;
+  
+      const departments = res.rows.map(({ id, name }) => ({ name, value: id }));
+  
+      inquirer
+        .prompt([
+          {
+            name: 'title',
+            message: 'Enter the role title:'
+          },
+          {
+            name: 'salary',
+            message: 'Enter the role salary:'
+          },
+          {
+            type: 'list',
+            name: 'department_id',
+            message: 'Select the department for this role:',
+            choices: departments
+          }
+        ])
+        .then((answers)   => {
+          pool.query(
+            'INSERT INTO role (title, salary, department_id) VALUES ($1, $2, $3)',
+            [answers.title, answers.salary, answers.department_id],
+            (err) => {
+              if (err) throw err;
+              console.log('Role added!');
+              
             }
-        })
-    })}
-    else 
-    if (data.action==='update an employee role'){
-        updateEmployeeRole();
+          );
+        });
+    });
+  }
+  
+  // Add an employee
+  function addEmployee() {
+    pool.query('SELECT * FROM role', (err, res) => {
+      if (err) throw err;
+  
+      const roles = res.rows.map(({ id, title }) => ({ name: title, value: id }));
+  
+      pool.query('SELECT * FROM employee', (err, res) => {
+        if (err) throw err;
+  
+        const managers = res.rows.map(({ id, first_name, last_name }) => ({
+          name: `${first_name} ${last_name}`,
+          value: id
+        }));
+  
+        managers.unshift({ name: 'None', value: null });
+  
+        inquirer
+          .prompt([
+            {
+              name: 'first_name',
+              message: 'Enter the employee\'s first name:'
+            },
+            {
+              name: 'last_name',
+              message: 'Enter the employee\'s last name:'
+            },
+            {
+              type: 'list',
+              name: 'role_id',
+              message: 'Select the employee\'s role:',
+              choices: roles
+            },
+            {
+              type: 'list',
+              name: 'manager_id',
+              message: 'Select the employee\'s manager:',
+              choices: managers
+            }
+          ])
+          .then((answers) => {
+            pool.query(
+              'INSERT INTO employee (first_name, last_name, role_id, manager_id) VALUES ($1, $2, $3, $4)',
+              [answers.first_name, answers.last_name, answers.role_id, answers.manager_id],
+              (err) => {
+                if (err) throw err;
+                console.log('Employee added!');
+                
+              }
+            );
+          });
+      });
+    });
+  }
+  
+  // Update employee role
+  function updateEmployeeRole() {
+    pool.query('SELECT * FROM employee', (err, res) => {
+      if (err) throw err;
+  
+      const employees = res.rows.map(({ id, first_name, last_name }) => ({
+        name: `${first_name} ${last_name}`,
+        value: id
+      }));
+  
+      pool.query('SELECT * FROM role', (err, res) => {
+        if (err) throw err;
+  
+        const roles = res.rows.map(({ id, title }) => ({ name: title, value: id }));
+  
+        inquirer
+          .prompt([
+            {
+              type: 'list',
+              name: 'employee_id',
+              message: 'Select the employee to update:',
+              choices: employees
+            },
+            {
+              type: 'list',
+              name: 'role_id',
+              message: 'Select the new role:',
+              choices: roles
+            }
+          ])
+          .then((answers) => {
+            pool.query(
+              'UPDATE employee SET role_id = $1 WHERE id = $2',
+              [answers.role_id, answers.employee_id],
+              (err) => {
+                if (err) throw err;
+                console.log('Employee role updated!');
+                
+              }
+            );
+          });
+      });
+    });
+  }
 
-
-
-    }
-    // else 
-    // if (data.action==='quit'){
-    //     pool.end();
-
-
-}
-
-module.exports=tracking;
+ 
+module.exports = { viewDepartments, viewRoles, viewEmployees, addDepartment, addRole, addEmployee, updateEmployeeRole };

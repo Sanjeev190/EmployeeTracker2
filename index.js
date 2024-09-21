@@ -1,37 +1,62 @@
-const inquirer=require('inquirer');
-const fs=require('fs');
-const tracking=require('./tracker.js');
-const department=require('./getdepartment.js');
+
 const{ Pool }=require('pg');
-
-
-
-function promptUser() {
-    inquirer.prompt({
+const pool=require('./pool.js')
+const inquirer = require('inquirer');
+pool.connect();
+const{ viewDepartments, viewRoles, viewEmployees, addDepartment, addRole, addEmployee, updateEmployeeRole }=require('./tracker.js')
+// Main menu
+function mainMenu() {
+  inquirer
+    .prompt({
       type: 'list',
-      name: 'action',
-      message: 'What do you want to do?',
+      name: 'choice',
+      message: 'What would you like to do?',
       choices: [
-        'view all department',
-        'view all roles',
-        'view all employees',
-        'add a department',
-        'add a role',
-        'add an employee',
-        'update an employee role',
-        'quit'
+        'View all departments',
+        'View all roles',
+        'View all employees',
+        'Add a department',
+        'Add a role',
+        'Add an employee',
+        'Update an employee role',
+        'Exit'
       ]
-    }).then((answer) => {
-        // console.log(answer)
-    tracking(answer)
-    promptUser();
-    if (answer.action==='quit'){
-        Pool.end();
-        return;
-    }     
-    
-})
+    })
+    .then((response) => {
+      switch (response.choice) {
+        case 'View all departments':
+          viewDepartments();
+          mainMenu();
+          break;
+        case 'View all roles':
+          viewRoles();
+          mainMenu();
+          break;
+        case 'View all employees':
+          viewEmployees();
+          mainMenu();
+          break;
+        case 'Add a department':
+          addDepartment();
+          mainMenu();
+          break;
+        case 'Add a role':
+          addRole();
+          mainMenu();
+          break;
+        case 'Add an employee':
+          addEmployee();
+          mainMenu();
+          break;
+        case 'Update an employee role':
+          updateEmployeeRole();
+          mainMenu();
+          break;
+        case 'Exit':
+          pool.end();
+          break;
+      }
+    });
 }
-
-promptUser();
-    
+mainMenu();
+// View departments
