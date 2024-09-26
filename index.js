@@ -25,32 +25,31 @@ function mainMenu() {
     .then((response) => {
       switch (response.choice) {
         case 'View all departments':
-          viewDepartments();
-          mainMenu();
+          viewDepartments(mainMenu);
+         
           break;
         case 'View all roles':
-          viewRoles();
-          mainMenu();
+          viewRoles(mainMenu);
           break;
         case 'View all employees':
-          viewEmployees();
-          mainMenu();
+          viewEmployees(mainMenu);
+        
           break;
         case 'Add a department':
-          addDepartment();
-          mainMenu();
+          addDepartment(mainMenu);
+          
           break;
         case 'Add a role':
-          addRole();
-          mainMenu();
+          addRole(mainMenu);
+         
           break;
         case 'Add an employee':
-          addEmployee();
-          mainMenu();
+          addEmployee(mainMenu);
+      
           break;
         case 'Update an employee role':
-          updateEmployeeRole();
-          mainMenu();
+          updateEmployeeRole(mainMenu);
+       
           break;
         case 'Exit':
           pool.end();

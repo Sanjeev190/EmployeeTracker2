@@ -4,16 +4,16 @@ const inquirer = require('inquirer');
 
 pool.connect();
 
-function viewDepartments() {
+function viewDepartments(functionback) {
     pool.query('SELECT * FROM department', (err, res) => {
       if (err) throw err;
       console.table(res.rows);
-      
+      functionback()
     });
   }
   
   // View roles
-  function viewRoles() {
+  function viewRoles(functionback) {
     const query = `
       SELECT role.id, role.title, department.name AS department, role.salary
       FROM role
@@ -22,12 +22,13 @@ function viewDepartments() {
     pool.query(query, (err, res) => {
       if (err) throw err;
       console.table(res.rows);
+      functionback()
       
     });
   }
   
   // View employees
-  function viewEmployees() {
+  function viewEmployees(functionback) {
     const query = `
       SELECT employee.id, employee.first_name, employee.last_name, role.title, department.name AS department, role.salary,
              COALESCE(manager.first_name || ' ' || manager.last_name, 'None') AS manager
@@ -39,12 +40,12 @@ function viewDepartments() {
     pool.query(query, (err, res) => {
       if (err) throw err;
       console.table(res.rows);
-      mainMenu();
+      functionback()
     });
   }
   
   // Add a department
-  function addDepartment() {
+  function addDepartment(functionback) {
     inquirer
       .prompt({
         name: 'name',
@@ -54,13 +55,13 @@ function viewDepartments() {
         pool.query('INSERT INTO department (name) VALUES ($1)', [answer.name], (err) => {
           if (err) throw err;
           console.log('Department added!');
-          mainMenu();
+          functionback();
         });
       });
   }
   
   // Add a role
-  function addRole() {
+  function addRole(functionback) {
   pool.query('SELECT * FROM department', (err, res) => {
       if (err) throw err;
   
@@ -90,6 +91,7 @@ function viewDepartments() {
             (err) => {
               if (err) throw err;
               console.log('Role added!');
+              functionback()
               
             }
           );
@@ -98,7 +100,7 @@ function viewDepartments() {
   }
   
   // Add an employee
-  function addEmployee() {
+  function addEmployee(functionback) {
     pool.query('SELECT * FROM role', (err, res) => {
       if (err) throw err;
   
@@ -144,6 +146,7 @@ function viewDepartments() {
               (err) => {
                 if (err) throw err;
                 console.log('Employee added!');
+                functionback()
                 
               }
             );
@@ -189,6 +192,7 @@ function viewDepartments() {
               (err) => {
                 if (err) throw err;
                 console.log('Employee role updated!');
+                functionback()
                 
               }
             );
